@@ -1,0 +1,340 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consentement et confidentialité</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f6fb;
+  color: #172033;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  padding: 30px;
+  border-radius: 18px;
+  box-shadow: 0 8px 30px #00000010;
+}
+
+h1 {
+  text-align: center;
+  color: #2459d3;
+}
+
+p {
+  line-height: 1.6;
+  color: #566174;
+}
+
+.info {
+  background: #f3f6fb;
+  padding: 15px;
+  margin: 15px 0;
+  border-radius: 10px;
+}
+
+button {
+  padding: 13px;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: bold;
+  margin: 5px 0;
+}
+
+.accepter {
+  background: #2459d3;
+  color: white;
+  width: 100%;
+}
+
+.refuser {
+  background: white;
+  color: #172033;
+  border: 1px solid #d5dce7;
+  width: 100%;
+}
+
+.action {
+  background: #e7efff;
+  color: #2459d3;
+  width: 100%;
+}
+
+#resultats {
+  display: none;
+  overflow-wrap: anywhere;
+}
+
+#camera {
+  width: 100%;
+  margin-top: 15px;
+  border-radius: 10px;
+}
+
+.small {
+  font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+  <section id="consentement">
+    <h1>Votre confidentialité</h1>
+
+    <p>
+      Choisissez les informations que vous souhaitez partager.
+      Vous pouvez accepter ou refuser. Les autorisations
+      sensibles seront demandées séparément par le navigateur.
+    </p>
+
+    <div class="info">
+      <strong>Adresse IP publique</strong>
+      <p>Une requête vers un service externe sera effectuée
+      si vous acceptez.</p>
+    </div>
+
+    <div class="info">
+      <strong>Localisation</strong>
+      <p>Votre navigateur vous demandera votre autorisation.</p>
+    </div>
+
+    <div class="info">
+      <strong>Informations du navigateur</strong>
+      <p>Langue, navigateur et système déclaré.</p>
+    </div>
+
+    <div class="info">
+      <strong>Caméra facultative</strong>
+      <p>La caméra ne sera demandée que si vous cochez cette option.</p>
+      <label>
+        <input type="checkbox" id="choixCamera">
+        Je souhaite pouvoir activer ma caméra.
+      </label>
+    </div>
+
+    <button class="accepter" onclick="accepter()">
+      Accepter et continuer
+    </button>
+
+    <button class="refuser" onclick="refuser()">
+      Refuser
+    </button>
+  </section>
+
+  <section id="resultats">
+    <h1>Mes informations</h1>
+
+    <div class="info">
+      <strong>Adresse IP publique :</strong>
+      <p id="ip">Non demandée</p>
+    </div>
+
+    <div class="info">
+      <strong>Navigateur :</strong>
+      <p id="navigateur"></p>
+
+      <strong>Système :</strong>
+      <p id="systeme"></p>
+
+      <strong>Langue :</strong>
+      <p id="langue"></p>
+    </div>
+
+    <div class="info">
+      <strong>Localisation :</strong>
+      <p id="position">Non demandée</p>
+
+      <button class="action" onclick="localisation()">
+        Autoriser la localisation
+      </button>
+    </div>
+
+    <div class="info" id="zoneCamera" hidden>
+      <strong>Caméra :</strong>
+      <p id="etatCamera">Désactivée</p>
+
+      <button class="action" onclick="activerCamera()">
+        Activer la caméra
+      </button>
+
+      <video id="camera" autoplay playsinline hidden></video>
+
+      <button class="refuser" onclick="arreterCamera()">
+        Arrêter la caméra
+      </button>
+    </div>
+
+    <button class="refuser" onclick="retour()">
+      Retirer mon consentement
+    </button>
+  </section>
+
+  <p class="small">
+    Les informations affichées ne sont pas enregistrées par ce site.
+    L'adresse IP est demandée à un service tiers.
+  </p>
+</div>
+
+<script>
+let accepte = false;
+let cameraAutorisee = false;
+let fluxCamera = null;
+
+async function accepter() {
+  accepte = true;
+  cameraAutorisee =
+    document.getElementById("choixCamera").checked;
+
+  document.getElementById("consentement").style.display = "none";
+  document.getElementById("resultats").style.display = "block";
+
+  document.getElementById("navigateur").textContent =
+    navigator.userAgent;
+
+  document.getElementById("systeme").textContent =
+    navigator.platform || "Non disponible";
+
+  document.getElementById("langue").textContent =
+    navigator.language || "Non disponible";
+
+  document.getElementById("zoneCamera").hidden =
+    !cameraAutorisee;
+
+  // La requête IP n'est faite qu'après acceptation.
+  try {
+    const reponse = await fetch(
+      "https://api.ipify.org?format=json"
+    );
+    if (!reponse.ok) throw new Error("Erreur réseau");
+
+    const donnees = await reponse.json();
+
+    if (accepte) {
+      document.getElementById("ip").textContent =
+        donnees.ip;
+    }
+  } catch {
+    document.getElementById("ip").textContent =
+      "Impossible de récupérer l'adresse IP.";
+  }
+}
+
+function refuser() {
+  accepte = false;
+  arreterCamera();
+
+  document.getElementById("consentement").style.display = "none";
+  document.getElementById("resultats").style.display = "block";
+
+  document.getElementById("ip").textContent =
+    "Non demandée : consentement refusé";
+
+  document.getElementById("navigateur").textContent =
+    "Non consulté";
+
+  document.getElementById("systeme").textContent =
+    "Non consulté";
+
+  document.getElementById("langue").textContent =
+    "Non consultée";
+
+  document.getElementById("position").textContent =
+    "Non demandée";
+}
+
+function localisation() {
+  if (!accepte) return;
+
+  if (!navigator.geolocation) {
+    document.getElementById("position").textContent =
+      "Localisation non prise en charge.";
+    return;
+  }
+
+  document.getElementById("position").textContent =
+    "En attente de votre autorisation...";
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      if (!accepte) return;
+
+      document.getElementById("position").textContent =
+        "Latitude : " + pos.coords.latitude +
+        " ; Longitude : " + pos.coords.longitude;
+    },
+    function() {
+      document.getElementById("position").textContent =
+        "Autorisation refusée ou position indisponible.";
+    }
+  );
+}
+
+async function activerCamera() {
+  if (!accepte || !cameraAutorisee) return;
+
+  try {
+    fluxCamera =
+      await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false
+      });
+
+    document.getElementById("camera").srcObject =
+      fluxCamera;
+
+    document.getElementById("camera").hidden = false;
+
+    document.getElementById("etatCamera").textContent =
+      "Caméra active. Aucune vidéo n'est enregistrée.";
+  } catch {
+    document.getElementById("etatCamera").textContent =
+      "Accès refusé ou caméra indisponible.";
+  }
+}
+
+function arreterCamera() {
+  if (fluxCamera) {
+    fluxCamera.getTracks().forEach(piste => piste.stop());
+    fluxCamera = null;
+  }
+
+  const video = document.getElementById("camera");
+  video.srcObject = null;
+  video.hidden = true;
+
+  const etat = document.getElementById("etatCamera");
+  if (etat) etat.textContent = "Caméra arrêtée.";
+}
+
+function retour() {
+  accepte = false;
+  cameraAutorisee = false;
+  arreterCamera();
+
+  document.getElementById("resultats").style.display = "none";
+  document.getElementById("consentement").style.display = "block";
+  document.getElementById("choixCamera").checked = false;
+}
+</script>
+</body>
+</html>
